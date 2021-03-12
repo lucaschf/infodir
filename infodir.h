@@ -4,6 +4,7 @@
 #define GET_FOLDER_SIZE "getFolderSize"
 #define METHOD_IPC "Método: IPC - Interproccess Communication"
 #define INVALID_FOLDER_NAME "Invalid folder name"
+#define METHOD_MULTI_THREAD "Método: multi thread"
 #define DIRECTORY "Diretório"
 #define DIRECTORY_CONTENT "Conteúdo do diretório"
 #define FILES "Arquivos"
@@ -13,12 +14,21 @@
 #define SIZE_IN_MEGAS "Tamanho do diretório em megabytes"
 #define BYTES "bytes"
 #define TIME_USING_IPC "Tempo usando IPC"
+#define TIME_USING_MULTI_THREAD "Tempo usando multi thread"
 #define BEGIN "Início"
 #define END "Término"
 #define DURATION "Duração"
 #define SECONDS "segundos"
+#define UNABLE_TO_CREATE_PROCCESS "Incapaz de criar processo"
 
 time_t getCurrentTime();
+
+/**
+ * Tries to create a process, if fails, shows a error message and exit program.
+ *
+ * @return the created pid
+ */
+int createProcess();
 
 /**
  * Displays a time in HH:mm:ss format
@@ -27,16 +37,4 @@ time_t getCurrentTime();
  * @param tm the time to be shown.
  */
 void displayTime(const char *message, struct tm *tm);
-
-/**
- * Retrieves the size of the directory, the number of subdirectories and the number of files on the passed path.
- *
- * @param path the target directory path.
- * @param totalSize pointer to variable where the directory size should be stored.
- * @param subFolders pointer to variable where the sub folders count should be stored.
- * @param files pointer to variable where the files count should be stored.
- * @return EXIT_SUCCESS if successful executed, EXIT_FAILURE if something gone wrong.
- */
-int getFolderSize(const char *path, int *totalSize, int *subFolders, int *files);
-
 #endif //INFODIR_INFODIR_H
