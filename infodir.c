@@ -8,7 +8,7 @@
 
 #include "infodir.h"
 
-int getFolderSize(const char *folder, int *totalSize, int *subFolders, int *files) {
+int getFolderSize(const char *path, int *totalSize, int *subFolders, int *files) {
     char fullPath[256];
     struct dirent *dirData;
     struct stat buffer;
@@ -17,7 +17,7 @@ int getFolderSize(const char *folder, int *totalSize, int *subFolders, int *file
 
     int result = EXIT_SUCCESS;
 
-    directoryPointer = opendir(folder);
+    directoryPointer = opendir(path);
 
     if (!directoryPointer) {
         perror(strcat(GET_FOLDER_SIZE, ": failed to open directory"));
@@ -36,7 +36,7 @@ int getFolderSize(const char *folder, int *totalSize, int *subFolders, int *file
 
         if (dirData->d_type == DT_DIR) {
             if (dirData->d_name[0] != '.') {
-                strcpy(fullPath, folder);
+                strcpy(fullPath, path);
                 strcat(fullPath, "/");
                 strcat(fullPath, dirData->d_name);
 
@@ -46,7 +46,7 @@ int getFolderSize(const char *folder, int *totalSize, int *subFolders, int *file
                 *subFolders += 1;
             }
         } else {
-            strcpy(fullPath, folder);
+            strcpy(fullPath, path);
             strcat(fullPath, "/");
             strcat(fullPath, dirData->d_name);
 
@@ -78,7 +78,7 @@ time_t getCurrentTime() {
 void displayTime(const char *message, struct tm *tm) {
     printf(
             "\n\t%s: %2d:%02d:%02d",
-            message,
+            message ? message : "",
             tm->tm_hour,
             tm->tm_min,
             tm->tm_sec
