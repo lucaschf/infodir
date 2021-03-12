@@ -1,1 +1,0 @@
-/usr/bin/cc -g   CMakeFiles/infodir.dir/infodir.c.o  -o infodir 
