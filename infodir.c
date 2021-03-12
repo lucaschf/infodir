@@ -4,42 +4,46 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <time.h>
 
-int readFolderSize(int *totalSize, char *folder) {
+#include "infodir.h"
+
+int getFolderSize(const char *folder, int *totalSize, int *subFolders, int *files) {
     char fullPath[256];
     struct dirent *dirData;
     struct stat buffer;
     int exists;
-    DIR *poDir;
+    DIR *directoryPointer;
 
-    int resp = EXIT_SUCCESS;
+    int result = EXIT_SUCCESS;
 
-    poDir = opendir(folder);
+    directoryPointer = opendir(folder);
 
-    if (poDir == NULL) {
-        perror("general_getFolderSize: poDir fail!");
+    if (!directoryPointer) {
+        perror(strcat(GET_FOLDER_SIZE, ": failed to open directory"));
         return EXIT_FAILURE;
     }
 
-    while ((dirData = readdir(poDir))) {
+    while ((dirData = readdir(directoryPointer))) {
         if (dirData == NULL) {
             const unsigned int err = errno;
-            fprintf(stderr, "general_getFolderSize: Failed in readdir (%u)\n", err);
-            resp = EXIT_FAILURE;
+
+            fprintf(stderr, "%s: Failed in readdir (%u)\n", GET_FOLDER_SIZE, err);
+            result = EXIT_FAILURE;
 
             continue;
         }
 
-        // check if folder is a directory
         if (dirData->d_type == DT_DIR) {
-
             if (dirData->d_name[0] != '.') {
                 strcpy(fullPath, folder);
                 strcat(fullPath, "/");
                 strcat(fullPath, dirData->d_name);
 
-                if (readFolderSize(totalSize, fullPath) == EXIT_FAILURE)
-                    resp = EXIT_FAILURE;
+                if (getFolderSize(fullPath, totalSize, subFolders, files) == EXIT_FAILURE)
+                    result = EXIT_FAILURE;
+
+                *subFolders += 1;
             }
         } else {
             strcpy(fullPath, folder);
@@ -50,51 +54,76 @@ int readFolderSize(int *totalSize, char *folder) {
 
             if (exists < 0) {
                 const unsigned int err = errno;
-                fprintf(stderr, "general_getFolderSize: Failed in stat (file) %s: %u\n", fullPath, err);
-                resp = EXIT_FAILURE;
+                fprintf(stderr, "%s: Failed in stat (file) %s: %u\n", GET_FOLDER_SIZE, fullPath, err);
+                result = EXIT_FAILURE;
+
                 continue;
             } else {
+                (*files) += 1;
                 (*totalSize) += buffer.st_size;
             }
         }
     }
 
-    closedir(poDir);
+    closedir(directoryPointer);
 
-    return resp;
+    return result;
 }
 
-/*!
- * \brief general_getFolderSize returns the size of a folder in bytes.
- * \param folder is the name of the folder (preferentially without a '/' at the end)
- * \param totalSize is a pointer where the result value is given
- * \return
- */
-int general_getFolderSize(char *folder, int *totalSize) {
-    printf("general_getFolderSize: Start\n");
+time_t getCurrentTime() {
+    time_t rawTime;
+    return time(&rawTime);
+}
 
-    //
-    if (readFolderSize(totalSize, folder) == EXIT_FAILURE) {
-        perror("general_getFolderSize: Call to readFolderSize failed!");
+void displayTime(const char *message, struct tm *tm) {
+    printf(
+            "\n\t%s: %2d:%02d:%02d",
+            message,
+            tm->tm_hour,
+            tm->tm_min,
+            tm->tm_sec
+    );
+}
 
+int calculateSize(const char *folderName) {
+
+    int subFolders = 0;
+    int files = 0;
+    int folderSize;
+
+    if (!folderName) {
+        perror(INVALID_FOLDER_NAME);
         return EXIT_FAILURE;
     }
 
-    //
-    printf("general_getFolderSize: Stop\n");
+    time_t begin = getCurrentTime();
+
+    if (getFolderSize(folderName, &folderSize, &subFolders, &files) == EXIT_FAILURE)
+        printf(UNABLE_TO_RECOVER_SIZE);
+    else {
+        printf("%s: %s\n", DIRECTORY, folderName);
+        printf("\n%s", DIRECTORY_CONTENT);
+
+        printf("\n\t%s: %d ", FILES, files);
+        printf("\n\t%s: %d ", SUB_FOLDERS, subFolders);
+        printf("\n\t%s: %d %s", DIRECTORY_SIZE, folderSize, BYTES);
+        printf("\n\t%s: %.1f Mb", SIZE_IN_MEGAS, folderSize / (1024.0 * 1024));
+
+        printf("\n");
+    }
+
+    time_t end = getCurrentTime();
+
+    printf("\n%s", TIME_USING_IPC);
+    displayTime(BEGIN, localtime(&begin));
+    printf("\n\t%s: %d %s", DURATION, (int) difftime(end, begin), SECONDS);
+    displayTime(END, localtime(&end));
 
     return EXIT_SUCCESS;
 }
 
 int main(int argc, char **argv) {
-    int folderSize;
+    printf("%s \n", METHOD_IPC);
 
-
-    if (general_getFolderSize("/home/lucas/Downloads", &folderSize) == EXIT_FAILURE) {
-        printf("Error reading folder size!");
-    } else {
-        printf("Folder size: %d b (%d kb / %d Mb)\n", folderSize, folderSize / 1024, folderSize / (1024 * 1024));
-    }
-
-    return EXIT_SUCCESS;
+    return calculateSize(((argc == 1) ? NULL : argv[1]));
 }

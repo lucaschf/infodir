@@ -19,4 +19,12 @@ dirent.h
 -
 sys/stat.h
 -
+time.h
+-
+unistd.h
+-
+infodir.h
+/home/lucas/CLionProjects/infodir/infodir.h
+
+/home/lucas/CLionProjects/infodir/infodir.h
 
