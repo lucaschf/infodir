@@ -17,14 +17,17 @@ int subFolders;
 int files;
 time_t begin;
 int children = 0;
+char rootPath[250] = "";
 
 typedef enum {
     PROCESS, THREAD
 } Mode;
 
 Mode runningMode;
+
 void calculateSize(const char *folderName, Mode mode);
 
+void createThread(char *folderPath);
 
 int createProcess() {
     int pid = fork();
@@ -62,31 +65,29 @@ void *getFolderSize(void *path) {
         if (dirData->d_type == DT_DIR) { // directory
             if (dirData->d_name[0] != '.') { // valid directory
 
-                if (children < MAX_CHILDREN && runningMode == PROCESS) { // can create another child
-                    int pid = createProcess();
-                    children++;
-
-                    if (pid != 0) { // child process
-                        //printf("Child process %d started \n", pid);
-                        waitpid(pid, NULL, 0);
-                        //printf("Child process %d ended \n", pid);
-                        exit(0);
-                    }
-                }
-
                 // generates the sub folder path
                 strcpy(subFolderPath, path);
                 strcat(subFolderPath, "/");
                 strcat(subFolderPath, dirData->d_name);
 
-                subFolders ++;
-                if (children < MAX_CHILDREN && runningMode == THREAD) {
-                    int threadId = ++children;
-                    printf("Thread %d started\n", threadId);
-                    pthread_t pthread;
-                    pthread_create(&pthread,NULL,getFolderSize,(void *)subFolderPath);
-                    pthread_join(pthread, NULL);
-                    printf("Thread %d ended\n", threadId);
+                subFolders++;
+
+                if (strcmp(path, rootPath) == 0 && children < MAX_CHILDREN) { // can create another child
+                    children++;
+
+                    if (runningMode == PROCESS) {
+                        int pid = createProcess();
+
+                        if (pid != 0) { // child process
+                            // printf("Child process %d started \n", pid);
+                            waitpid(pid, NULL, 0);
+                            // printf("Child process %d ended \n", pid);
+                            exit(0);
+                        } else
+                            getFolderSize(subFolderPath);
+                    }else{
+                        createThread(subFolderPath);
+                    }
                 } else
                     getFolderSize(subFolderPath);
             }
@@ -100,7 +101,7 @@ void *getFolderSize(void *path) {
                 fprintf(stderr, "%s: Failed in stat (file) %s: %u\n", GET_FOLDER_SIZE, subFolderPath, err);
                 exit(EXIT_FAILURE);
             } else {
-                files += 1;
+                files ++;
                 folderSize += buffer.st_size;
             }
         }
@@ -108,6 +109,15 @@ void *getFolderSize(void *path) {
 
     closedir(directoryPointer);
     return NULL;
+}
+
+void createThread(char *folderPath) {
+    // int threadId = children;
+    // printf("Thread %d started\n", threadId);
+    pthread_t pthread;
+    pthread_create(&pthread, NULL, getFolderSize, (void *) folderPath);
+    pthread_join(pthread, NULL);
+    // printf("Thread %d ended\n", threadId);
 }
 
 time_t getCurrentTime() {
@@ -153,23 +163,27 @@ void calculateSize(const char *folderName, Mode mode) {
     subFolders = 0;
     children = 0;
 
+    strcpy(rootPath, folderName);
+
+    runningMode = mode;
+    getFolderSize((char *) folderName);
+    displayResult(folderName);
+}
+
+void run(char *folderName){
     if (!folderName) {
         perror(INVALID_FOLDER_NAME);
         exit(EXIT_FAILURE);
     }
 
-    runningMode = mode;
-    getFolderSize((char*) folderName);
-    displayResult(folderName);
+    begin = getCurrentTime();
+    calculateSize(folderName, PROCESS);
+
+    begin = getCurrentTime();
+    calculateSize(folderName, THREAD);
 }
 
 int main(int argc, char **argv) {
-    // TODO remove this test line
-    argc = 2;
-    argv[1] = "/home/lucas/Downloads";
-    begin = getCurrentTime();
-    calculateSize(((argc == 1) ? NULL : argv[1]), PROCESS);
-    begin = getCurrentTime();
-    calculateSize(((argc == 1) ? NULL : argv[1]), THREAD);
+    run((argc == 1) ? NULL : argv[1]);
     return 0;
 }
