@@ -14,7 +14,7 @@
 int folderSize;
 int subFolders;
 int files;
-
+time_t begin;
 int children = 0;
 
 typedef enum {
@@ -65,7 +65,9 @@ void getFolderSize(const char *path, Mode mode) {
                     children++;
 
                     if (pid != 0) { // child process
-                        waitpid(pid, NULL, 0);
+                        printf("Child process %d started \n", pid);
+                        waitpid(pid, NULL, 1);
+                        printf("Child process %d ended \n", pid);
                         exit(0);
                     } else {
                         strcpy(fullPath, path);
@@ -118,18 +120,7 @@ void displayTime(const char *message, struct tm *tm) {
     );
 }
 
-void calculateSize(const char *folderName, Mode mode) {
-    printf("%s \n", mode == PROCESS ? METHOD_IPC : METHOD_MULTI_THREAD);
-
-    if (!folderName) {
-        perror(INVALID_FOLDER_NAME);
-        exit(EXIT_FAILURE);
-    }
-
-    time_t begin = getCurrentTime();
-
-    getFolderSize(folderName, mode);
-
+void displayResult(const char *folderName, Mode mode) {
     printf("%s: %s\n", DIRECTORY, folderName);
     printf("\n%s", DIRECTORY_CONTENT);
 
@@ -147,6 +138,20 @@ void calculateSize(const char *folderName, Mode mode) {
     printf("\n\t%s: %d %s", DURATION, (int) difftime(end, begin), SECONDS);
     displayTime(END, localtime(&end));
     printf("\n");
+}
+
+void calculateSize(const char *folderName, Mode mode) {
+    printf("%s \n", mode == PROCESS ? METHOD_IPC : METHOD_MULTI_THREAD);
+
+    if (!folderName) {
+        perror(INVALID_FOLDER_NAME);
+        exit(EXIT_FAILURE);
+    }
+
+    begin = getCurrentTime();
+
+    getFolderSize(folderName, mode);
+    displayResult(folderName, mode);
 }
 
 int main(int argc, char **argv) {
