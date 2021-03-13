@@ -19,15 +19,7 @@ time_t begin;
 int children = 0;
 char rootPath[250] = "";
 
-typedef enum {
-    PROCESS, THREAD
-} Mode;
-
 Mode runningMode;
-
-void calculateSize(const char *folderName, Mode mode);
-
-void createThread(char *folderPath);
 
 int createProcess() {
     int pid = fork();
@@ -79,17 +71,21 @@ void *getFolderSize(void *path) {
                         int pid = createProcess();
 
                         if (pid != 0) { // child process
-                            // printf("Child process %d started \n", pid);
+//                            printf("Child process %d started \n", pid);
                             waitpid(pid, NULL, 0);
-                            // printf("Child process %d ended \n", pid);
+//                            printf("Child process %d ended \n", pid);
                             exit(0);
                         } else
                             getFolderSize(subFolderPath);
-                    }else{
-                        createThread(subFolderPath);
+
+                        continue;
                     }
-                } else
-                    getFolderSize(subFolderPath);
+
+                    createThread(subFolderPath);
+                    continue;
+                }
+
+                getFolderSize(subFolderPath);
             }
         } else {
             strcpy(subFolderPath, path);
@@ -101,7 +97,7 @@ void *getFolderSize(void *path) {
                 fprintf(stderr, "%s: Failed in stat (file) %s: %u\n", GET_FOLDER_SIZE, subFolderPath, err);
                 exit(EXIT_FAILURE);
             } else {
-                files ++;
+                files++;
                 folderSize += buffer.st_size;
             }
         }
@@ -112,12 +108,12 @@ void *getFolderSize(void *path) {
 }
 
 void createThread(char *folderPath) {
-    // int threadId = children;
-    // printf("Thread %d started\n", threadId);
+//    int threadId = children;
+//    printf("Thread %d started\n", threadId);
     pthread_t pthread;
     pthread_create(&pthread, NULL, getFolderSize, (void *) folderPath);
     pthread_join(pthread, NULL);
-    // printf("Thread %d ended\n", threadId);
+//    printf("Thread %d ended\n", threadId);
 }
 
 time_t getCurrentTime() {
@@ -142,8 +138,8 @@ void displayResult(const char *folderName) {
     printf("\n\t%s: %d ", FILES, files);
     printf("\n\t%s: %d ", SUB_FOLDERS, subFolders);
     printf("\n\t%s: %d %s", DIRECTORY_SIZE, folderSize, BYTES);
-    printf("\n\t%s: %.1f MB", SIZE_IN_MEGAS, folderSize / (1024.0 * 1024));
-    printf("\n\t%s: %.1f KB", SIZE_IN_KB, folderSize / (1024.0));
+//    printf("\n\t%s: %.1f MB", SIZE_IN_MEGAS, folderSize / (1024.0 * 1024));
+//    printf("\n\t%s: %.1f KB", SIZE_IN_KB, folderSize / (1024.0));
 
     printf("\n");
     printf("\n%s", runningMode == PROCESS ? TIME_USING_IPC : TIME_USING_MULTI_THREAD);
@@ -170,7 +166,7 @@ void calculateSize(const char *folderName, Mode mode) {
     displayResult(folderName);
 }
 
-void run(char *folderName){
+void run(char *folderName) {
     if (!folderName) {
         perror(INVALID_FOLDER_NAME);
         exit(EXIT_FAILURE);
