@@ -6,14 +6,17 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
-
-
+#include <sys/wait.h>
 #include "infodir.h"
+
+#define MAX_CHILDREN 4
 
 int folderSize;
 int subFolders;
 int files;
-;
+
+int children = 0;
+
 typedef enum {
     PROCESS, THREAD
 } Mode;
@@ -41,8 +44,6 @@ void getFolderSize(const char *path, Mode mode) {
 
     directoryPointer = opendir(path);
 
-    int pid;
-
     if (!directoryPointer) {
         perror(strcat(GET_FOLDER_SIZE, ": failed to open directory"));
         exit(EXIT_FAILURE);
@@ -56,14 +57,32 @@ void getFolderSize(const char *path, Mode mode) {
             exit(EXIT_FAILURE);
         }
 
-        if (dirData->d_type == DT_DIR) { // diretorio
-            if (dirData->d_name[0] != '.') {
-                strcpy(fullPath, path);
-                strcat(fullPath, "/");
-                strcat(fullPath, dirData->d_name);
+        if (dirData->d_type == DT_DIR) { // directory
+            if (dirData->d_name[0] != '.') { // valid directory
+                int pid;
+                if (children < MAX_CHILDREN) { // can create another child
+                    pid = createProcess();
+                    children++;
 
-                subFolders += 1;
-                getFolderSize(fullPath, mode);
+                    if (pid != 0) { // child process
+                        waitpid(pid, NULL, 0);
+                        exit(0);
+                    } else {
+                        strcpy(fullPath, path);
+                        strcat(fullPath, "/");
+                        strcat(fullPath, dirData->d_name);
+
+                        subFolders += 1;
+                        getFolderSize(fullPath, mode);
+                    }
+                } else {
+                    strcpy(fullPath, path);
+                    strcat(fullPath, "/");
+                    strcat(fullPath, dirData->d_name);
+
+                    subFolders += 1;
+                    getFolderSize(fullPath, mode);
+                }
             }
         } else {
             strcpy(fullPath, path);
@@ -136,6 +155,5 @@ int main(int argc, char **argv) {
     argv[1] = "/home/lucas/Downloads";
 
     calculateSize(((argc == 1) ? NULL : argv[1]), PROCESS);
-
     return 0;
 }
