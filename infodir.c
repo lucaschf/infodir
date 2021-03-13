@@ -12,14 +12,11 @@
 
 #define MAX_CHILDREN 4
 
-int folderSize;
-int subFolders;
-int files;
+// shared memory
+FolderInfo folderInfo;
+Mode runningMode;
 time_t begin;
 int children = 0;
-char rootPath[250] = "";
-
-Mode runningMode;
 
 int createProcess() {
     int pid = fork();
@@ -32,7 +29,7 @@ int createProcess() {
     return pid;
 }
 
-void *getFolderSize(void *path) {
+void *getFolderInfo(void *path) {
     char subFolderPath[256];
     struct dirent *dirData;
     struct stat buffer;
@@ -42,7 +39,7 @@ void *getFolderSize(void *path) {
     directoryPointer = opendir(path);
 
     if (!directoryPointer) {
-        perror(strcat(GET_FOLDER_SIZE, ": failed to open directory"));
+        perror(strcat(GET_FOLDER_INFO, UNABLE_TO_OPEN_DIRECTORY));
         exit(EXIT_FAILURE);
     }
 
@@ -50,21 +47,21 @@ void *getFolderSize(void *path) {
         if (dirData == NULL) {
             const unsigned int err = errno;
 
-            fprintf(stderr, "%s: Failed in readdir (%u)\n", GET_FOLDER_SIZE, err);
+            fprintf(stderr, "%s: %s (%u)\n", GET_FOLDER_INFO, FAILED_ON_READ, err);
             exit(EXIT_FAILURE);
         }
 
         if (dirData->d_type == DT_DIR) { // directory
             if (dirData->d_name[0] != '.') { // valid directory
 
-                // generates the sub folder path
+                // generates the sub folder path by joining current path with the directory name
                 strcpy(subFolderPath, path);
                 strcat(subFolderPath, "/");
                 strcat(subFolderPath, dirData->d_name);
 
-                subFolders++;
+                folderInfo.subFolders++;
 
-                if (strcmp(path, rootPath) == 0 && children < MAX_CHILDREN) { // can create another child
+                if (!strcmp(path, folderInfo.path) && children < MAX_CHILDREN) { // can create another child
                     children++;
 
                     if (runningMode == PROCESS) {
@@ -76,7 +73,7 @@ void *getFolderSize(void *path) {
 //                            printf("Child process %d ended \n", pid);
                             exit(0);
                         } else
-                            getFolderSize(subFolderPath);
+                            getFolderInfo(subFolderPath);
 
                         continue;
                     }
@@ -85,22 +82,25 @@ void *getFolderSize(void *path) {
                     continue;
                 }
 
-                getFolderSize(subFolderPath);
+                getFolderInfo(subFolderPath);
             }
-        } else {
-            strcpy(subFolderPath, path);
-            strcat(subFolderPath, "/");
-            strcat(subFolderPath, dirData->d_name);
 
-            if (stat(subFolderPath, &buffer) < 0) { // not exists
-                const unsigned int err = errno;
-                fprintf(stderr, "%s: Failed in stat (file) %s: %u\n", GET_FOLDER_SIZE, subFolderPath, err);
-                exit(EXIT_FAILURE);
-            } else {
-                files++;
-                folderSize += buffer.st_size;
-            }
+            continue;
         }
+
+        // it's a file
+        strcpy(subFolderPath, path);
+        strcat(subFolderPath, "/");
+        strcat(subFolderPath, dirData->d_name);
+
+        if (stat(subFolderPath, &buffer) < 0) { // potentially not exists
+            const unsigned int err = errno;
+            fprintf(stderr, "%s: %s %s: %u\n", FAILED_IN_STAT_FILE, GET_FOLDER_INFO, subFolderPath, err);
+            exit(EXIT_FAILURE);
+        }
+
+        folderInfo.files++;
+        folderInfo.size_ += buffer.st_size;
     }
 
     closedir(directoryPointer);
@@ -111,7 +111,7 @@ void createThread(char *folderPath) {
 //    int threadId = children;
 //    printf("Thread %d started\n", threadId);
     pthread_t pthread;
-    pthread_create(&pthread, NULL, getFolderSize, (void *) folderPath);
+    pthread_create(&pthread, NULL, getFolderInfo, (void *) folderPath);
     pthread_join(pthread, NULL);
 //    printf("Thread %d ended\n", threadId);
 }
@@ -131,15 +131,15 @@ void displayTime(const char *message, struct tm *tm) {
     );
 }
 
-void displayResult(const char *folderName) {
-    printf("%s: %s\n", DIRECTORY, folderName);
+void displayResult() {
+    printf("%s: %s\n", DIRECTORY, folderInfo.path);
     printf("\n%s", DIRECTORY_CONTENT);
 
-    printf("\n\t%s: %d ", FILES, files);
-    printf("\n\t%s: %d ", SUB_FOLDERS, subFolders);
-    printf("\n\t%s: %d %s", DIRECTORY_SIZE, folderSize, BYTES);
-//    printf("\n\t%s: %.1f MB", SIZE_IN_MEGAS, folderSize / (1024.0 * 1024));
-//    printf("\n\t%s: %.1f KB", SIZE_IN_KB, folderSize / (1024.0));
+    printf("\n\t%s: %d ", FILES, folderInfo.files);
+    printf("\n\t%s: %d ", SUB_FOLDERS, folderInfo.subFolders);
+    printf("\n\t%s: %lld %s", DIRECTORY_SIZE, folderInfo.size_, BYTES);
+//    printf("\n\t%s: %.1f MB", SIZE_IN_MEGABYTES, folderInfo.size_ / (1024.0 * 1024));
+//    printf("\n\t%s: %.1f KB", SIZE_IN_KB, folderInfo.size_ / (1024.0));
 
     printf("\n");
     printf("\n%s", runningMode == PROCESS ? TIME_USING_IPC : TIME_USING_MULTI_THREAD);
@@ -151,19 +151,19 @@ void displayResult(const char *folderName) {
     printf("\n\n");
 }
 
-void calculateSize(const char *folderName, Mode mode) {
+void getInfo(const char *path, Mode mode) {
     printf("%s \n", mode == PROCESS ? METHOD_IPC : METHOD_MULTI_THREAD);
 
-    folderSize = 0;
-    files = 0;
-    subFolders = 0;
+    // resets the folder info
+    folderInfo.size_ = 0;
+    folderInfo.files = 0;
+    folderInfo.subFolders = 0;
+
     children = 0;
-
-    strcpy(rootPath, folderName);
-
     runningMode = mode;
-    getFolderSize((char *) folderName);
-    displayResult(folderName);
+
+    getFolderInfo((char *) path);
+    displayResult();
 }
 
 void run(char *folderName) {
@@ -172,11 +172,13 @@ void run(char *folderName) {
         exit(EXIT_FAILURE);
     }
 
-    begin = getCurrentTime();
-    calculateSize(folderName, PROCESS);
+    strcpy(folderInfo.path, folderName);
 
     begin = getCurrentTime();
-    calculateSize(folderName, THREAD);
+    getInfo(folderName, PROCESS);
+
+    begin = getCurrentTime();
+    getInfo(folderName, THREAD);
 }
 
 int main(int argc, char **argv) {
