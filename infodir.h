@@ -12,6 +12,7 @@
 #define UNABLE_TO_RECOVER_SIZE "Incapaz de recuperar o tamanho do diretório"
 #define DIRECTORY_SIZE "Tamanho do diretório"
 #define SIZE_IN_MEGAS "Tamanho do diretório em megabytes"
+#define SIZE_IN_KB "Tamanho do diretório em Kbytes"
 #define BYTES "bytes"
 #define TIME_USING_IPC "Tempo usando IPC"
 #define TIME_USING_MULTI_THREAD "Tempo usando multi thread"
@@ -21,7 +22,13 @@
 #define SECONDS "segundos"
 #define UNABLE_TO_CREATE_PROCCESS "Incapaz de criar processo"
 
+typedef enum {
+    PROCESS, THREAD
+} Mode;
+
 time_t getCurrentTime();
+
+void createThread(char *folderPath);
 
 /**
  * Tries to create a process, if fails, shows a error message and exit program.
@@ -31,10 +38,15 @@ time_t getCurrentTime();
 int createProcess();
 
 /**
- * Displays a time in HH:mm:ss format
+ * Displays a time in hh:mm:ss format
  *
  * @param message optional message to be shown.
  * @param tm the time to be shown.
  */
 void displayTime(const char *message, struct tm *tm);
+
+
+void calculateSize(const char *folderName, Mode mode);
+
+
 #endif //INFODIR_INFODIR_H
