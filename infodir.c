@@ -66,25 +66,18 @@ void getFolderSize(const char *path, Mode mode) {
 
                     if (pid != 0) { // child process
                         printf("Child process %d started \n", pid);
-                        waitpid(pid, NULL, 1);
+                        waitpid(pid, NULL, 0);
                         printf("Child process %d ended \n", pid);
                         exit(0);
-                    } else {
-                        strcpy(fullPath, path);
-                        strcat(fullPath, "/");
-                        strcat(fullPath, dirData->d_name);
-
-                        subFolders += 1;
-                        getFolderSize(fullPath, mode);
                     }
-                } else {
-                    strcpy(fullPath, path);
-                    strcat(fullPath, "/");
-                    strcat(fullPath, dirData->d_name);
-
-                    subFolders += 1;
-                    getFolderSize(fullPath, mode);
                 }
+
+                strcpy(fullPath, path);
+                strcat(fullPath, "/");
+                strcat(fullPath, dirData->d_name);
+
+                subFolders += 1;
+                getFolderSize(fullPath, mode);
             }
         } else {
             strcpy(fullPath, path);
