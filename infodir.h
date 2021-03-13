@@ -12,6 +12,7 @@
 #define UNABLE_TO_RECOVER_SIZE "Incapaz de recuperar o tamanho do diretório"
 #define DIRECTORY_SIZE "Tamanho do diretório"
 #define SIZE_IN_MEGAS "Tamanho do diretório em megabytes"
+#define SIZE_IN_KB "Tamanho do diretório em Kbytes"
 #define BYTES "bytes"
 #define TIME_USING_IPC "Tempo usando IPC"
 #define TIME_USING_MULTI_THREAD "Tempo usando multi thread"
